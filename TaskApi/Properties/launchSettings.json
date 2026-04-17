@@ -1,23 +1,53 @@
-﻿{
-  "$schema": "https://json.schemastore.org/launchsettings.json",
-  "profiles": {
-    "http": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": false,
-      "applicationUrl": "http://localhost:5190",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "https": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": false,
-      "applicationUrl": "https://localhost:7209;http://localhost:5190",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    }
-  }
+﻿@baseUrl = http://localhost:5190
+
+### GET
+GET {{baseUrl}}/api/tasks
+
+###
+GET {{baseUrl}}/api/tasks?completed=true
+
+###
+GET {{baseUrl}}/api/tasks?completed=false
+
+###
+GET {{baseUrl}}/api/tasks/1
+
+###
+GET {{baseUrl}}/api/tasks/999
+
+###
+POST {{baseUrl}}/api/tasks
+Content-Type: application/json
+
+{
+    "title": "Задача из REST Client",
+    "description": "Создана через файл .http",
+    "priority": "High"
 }
+
+###
+POST {{baseUrl}}/api/tasks
+Content-Type: application/json
+
+{
+    "title": "",
+    "description": "Описание без заголовка",
+    "priority": "Normal"
+}
+
+###
+PATCH {{baseUrl}}/api/tasks/2/complete
+
+###
+PUT {{baseUrl}}/api/tasks/1
+Content-Type: application/json
+
+{
+    "title": "Изучить ASP.NET Core (обязательно)",
+    "description": "Контроллеры, маршруты, DTO",
+    "isCompleted": true,
+    "priority": "High"
+}
+
+###
+DELETE {{baseUrl}}/api/tasks/4
