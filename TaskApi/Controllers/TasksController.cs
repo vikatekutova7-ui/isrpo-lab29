@@ -1,34 +1,42 @@
 using Microsoft.AspNetCore.Mvc;
 using TaskApi.Models;
+
 namespace TaskApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class TasksController : ControllerBase {
-    private static List<TaskItem> _tasks = new() {
-        new TaskItem {
+public class TasksController : ControllerBase
+{
+    private static List<TaskItem> _tasks = new()
+    {
+        new TaskItem
+        {
             Id = 1,
             Title = "Изучить ASP.NET Core",
             Priority = "High",
             isCompleted = true
         },
-        new TaskItem {
+        new TaskItem
+        {
             Id = 2,
             Title = "Сделать лабораторную №28",
             Priority = "High",
             isCompleted = false
         },
-        new TaskItem {
+        new TaskItem
+        {
             Id = 3,
             Title = "Написать README",
             Priority = "Normal",
             isCompleted = false
         },
     };
+
     private static int _nextId = 4;
 
     [HttpGet]
-    public ActionResult<IEnumerable<TaskItem>> GetAll([FromQuery] bool? completed = null) {
+    public ActionResult<IEnumerable<TaskItem>> GetAll([FromQuery] bool? completed = null)
+    {
         var result = _tasks.AsEnumerable();
         if (completed.HasValue)
             result = result.Where(t => t.isCompleted == completed.Value);
@@ -36,7 +44,8 @@ public class TasksController : ControllerBase {
     }
 
     [HttpGet("{id}")]
-    public ActionResult<TaskItem> GetById(int id) {
+    public ActionResult<TaskItem> GetById(int id)
+    {
         var task = _tasks.FirstOrDefault(t => t.Id == id);
         if (task is null)
             return NotFound(new { Message = $"Задача с id = {id} не найдена" });
@@ -44,10 +53,13 @@ public class TasksController : ControllerBase {
     }
 
     [HttpPost]
-    public ActionResult<TaskItem> Create([FromBody] CreateTaskDto dto) {
+    public ActionResult<TaskItem> Create([FromBody] CreateTaskDto dto)
+    {
         if (string.IsNullOrWhiteSpace(dto.Title))
             return BadRequest(new { Message = "Поле Title обязательно для заполнения" });
-        var newTask = new TaskItem {
+
+        var newTask = new TaskItem
+        {
             Id = _nextId++,
             Title = dto.Title,
             Description = dto.Description,
@@ -55,40 +67,120 @@ public class TasksController : ControllerBase {
             isCompleted = false,
             CreatedAt = DateTime.Now
         };
+
         _tasks.Add(newTask);
         return CreatedAtAction(nameof(GetById), new { id = newTask.Id }, newTask);
     }
 
     [HttpPut("{id}")]
-    public ActionResult<TaskItem> Update(int id, [FromBody] UpdateTaskDto dto) {
+    public ActionResult<TaskItem> Update(int id, [FromBody] UpdateTaskDto dto)
+    {
         var task = _tasks.FirstOrDefault(t => t.Id == id);
         if (task is null)
             return NotFound(new { Message = $"Задача с id={id} не найдена" });
+
         if (string.IsNullOrWhiteSpace(dto.Title))
             return BadRequest(new { Message = "Поле Title не может быть пустым" });
+
         task.Title = dto.Title;
         task.Description = dto.Description;
         task.Priority = dto.Priority;
         task.isCompleted = dto.isCompleted;
+
         return Ok(task);
     }
 
     [HttpDelete("{id}")]
-    public ActionResult Delete(int id) {
+    public ActionResult Delete(int id)
+    {
         var task = _tasks.FirstOrDefault(t => t.Id == id);
         if (task is null)
             return NotFound(new { Message = $"Задача с id={id} не найдена" });
+
         _tasks.Remove(task);
         return NoContent();
     }
 
     [HttpPatch("{id}/complete")]
-    public ActionResult<TaskItem> MarkComplete(int id) {
+    public ActionResult<TaskItem> MarkComplete(int id)
+    {
         var task = _tasks.FirstOrDefault(t => t.Id == id);
         if (task is null)
             return NotFound(new { Message = $"Задача с id={id} не найдена" });
+
         task.isCompleted = !task.isCompleted;
         return Ok(task);
     }
 
+    [HttpGet("search")]
+    public ActionResult<IEnumerable<TaskItem>> Search([FromQuery] string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return BadRequest(new { Message = "Параметр query не может быть пустым" });
+
+        var results = _tasks
+            .Where(t => t.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+                        || (t.Description != null && t.Description.Contains(query, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        return Ok(results);
+    }
+
+    [HttpGet("priority/{level}")]
+    public ActionResult<IEnumerable<TaskItem>> GetByPriority(string level)
+    {
+        var allowed = new[] { "Low", "Normal", "High" };
+
+        if (!allowed.Contains(level, StringComparer.OrdinalIgnoreCase))
+            return BadRequest(new { Message = "Допустимые значения: Low, Normal, High" });
+
+        var results = _tasks
+            .Where(t => t.Priority.Equals(level, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return Ok(results);
+    }
+
+    [HttpGet("stats")]
+    public ActionResult GetStats()
+    {
+        var total = _tasks.Count;
+        var completed = _tasks.Count(t => t.isCompleted);
+        var pending = total - completed;
+
+        var stats = new
+        {
+            Total = total,
+            Completed = completed,
+            Pending = pending,
+            CompletionPct = total > 0 ? Math.Round((double)completed / total * 100, 1) : 0,
+            ByPriority = new
+            {
+                High = _tasks.Count(t => t.Priority == "High"),
+                Normal = _tasks.Count(t => t.Priority == "Normal"),
+                Low = _tasks.Count(t => t.Priority == "Low")
+            }
+        };
+
+        return Ok(stats);
+    }
+
+    [HttpGet("sorted")]
+    public ActionResult<IEnumerable<TaskItem>> GetSorted(
+        [FromQuery] string by = "id",
+        [FromQuery] bool desc = false)
+    {
+        IEnumerable<TaskItem> sorted = by.ToLower() switch
+        {
+            "title" => _tasks.OrderBy(t => t.Title),
+            "priority" => _tasks.OrderBy(t => t.Priority),
+            "createdat" => _tasks.OrderBy(t => t.CreatedAt),
+            _ => _tasks.OrderBy(t => t.Id),
+        };
+
+        if (desc)
+            sorted = sorted.Reverse();
+
+        return Ok(sorted);
+    }
 }
